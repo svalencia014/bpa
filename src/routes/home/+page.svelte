@@ -1,6 +1,8 @@
+<!-- script -->
 <script>
 </script>
 
+<!-- styles -->
 <style>
     .nav {
         width: 100%;
@@ -13,6 +15,8 @@
         border:0px;
     }
 </style>
-<div class='nav'>
 
-</div>
+<!-- html -->
+ <body>
+    <div class='nav'></div>
+ </body>
