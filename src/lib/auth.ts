@@ -1,7 +1,7 @@
 import { encodeBase32LowerCaseNoPadding, encodeHexLowerCase } from "@oslojs/encoding";
 import type { Session, User } from "../../generated/prisma/client";
 import { sha256 } from "@oslojs/crypto/sha2";
-import prisma from "./db";
+import { prisma } from "$lib/db";
 import type { RequestEvent } from "@sveltejs/kit";
 
 export function generateSessionToken(): string {
