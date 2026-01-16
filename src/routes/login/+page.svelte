@@ -6,8 +6,20 @@
 
   async function handleUsernameLogin() {
     const req = await fetch("/login/", {
-      method: 'POST'
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email: username, password })
     })
+    const res = await req.json();
+    console.log(res);
+
+    if (req.status == 200) {
+      window.location.href = '/dashboard';
+    } else {
+      alert('Login failed: ' + res.message);
+    }
   }
 
   onMount(() => {
@@ -41,8 +53,8 @@
     <div class="mb-6">
       <label for="password" class="mb-2 block text-xs font-bold text-gray-700">Password</label>
       <input
-        id="username"
-        type="text"
+        id="password"
+        type="password"
         class="focus:shadow-outline w-full appearance-none rounded border px-3 py-2 text-sm leading-tight text-gray-700 shadow focus:outline-none"
         bind:value={password}
       />

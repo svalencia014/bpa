@@ -3,26 +3,25 @@ import { verifyPasswordHash } from "$lib/password";
 import { prisma } from "$lib/db";
 
 export async function POST(event) {
-  const { username, password } = await event.request.json();
+  const { email, password } = await event.request.json();
 
-  const passwordHash = (
-    await prisma.user.findUnique({
-      where: {
-        id: username
-      },
-      select: {
-        password: true
-      }
-    })
-  )?.password;
+  const user = await prisma.user.findUnique({
+    where: {
+      email
+    },
+    select: {
+      password: true,
+      id: true
+    }
+  })
 
-  if (passwordHash === null || passwordHash === undefined) {
+  if (user?.password === null || user?.password === undefined) {
     return new Response(JSON.stringify({ message: "User not found" }), { status: 404 });
   }
 
-  if ( await verifyPasswordHash(passwordHash, password)) {
+  if ( await verifyPasswordHash(user.password, password)) {
     const sessionToken = generateSessionToken();
-    const session = await createSession(sessionToken, username);
+    const session = await createSession(sessionToken, user.id);
     setSessionTokenCookie(event, sessionToken, session.expiresAt);
     return new Response(JSON.stringify({ message: 'Login successful' }), { status: 200 });
   } else {

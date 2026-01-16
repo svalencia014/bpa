@@ -61,7 +61,6 @@ export async function POST({ locals, request }) {
 
 	const user = await prisma.user.create({
 		data: {
-			id: id,
       email: email,
       name: name,
       password: passwordHash,
@@ -76,4 +75,28 @@ export async function POST({ locals, request }) {
 	}
 
 	return new Response(JSON.stringify({ success: true, message: 'User created successfully' }));
+}
+
+export async function DELETE({ locals, request }) {
+	if (!locals.session) {
+		return new Response(JSON.stringify({ success: false, message: 'Unauthorized' }), {
+			status: 401
+		});
+	}
+
+	if (!locals.user?.isAdmin) {
+		return new Response(JSON.stringify({ success: false, message: 'Forbidden' }), { status: 403 });
+	}
+
+	const { id } = await request.json();
+
+	await prisma.user.delete({
+		where: {
+			id: id
+		}
+	});
+
+	return new Response(JSON.stringify({ success: true, message: 'User deleted successfully' }), {
+		status: 200
+	});
 }
