@@ -45,15 +45,15 @@ export async function PUT({ locals, request }) {
 }
 
 export async function POST({ locals, request }) {
-	// if (!locals.session) {
-	// 	return new Response(JSON.stringify({ success: false, message: 'Unauthorized' }), {
-	// 		status: 401
-	// 	});
-	// }
+	if (!locals.session) {
+		return new Response(JSON.stringify({ success: false, message: 'Unauthorized' }), {
+			status: 401
+		});
+	}
 
-	// if (!locals.user?.isAdmin) {
-	// 	return new Response(JSON.stringify({ success: false, message: 'Forbidden' }), { status: 403 });
-	// }
+	if (!locals.user?.isAdmin) {
+		return new Response(JSON.stringify({ success: false, message: 'Forbidden' }), { status: 403 });
+	}
 
 	const { id, password, email, name, isAdmin } = await request.json();
 
