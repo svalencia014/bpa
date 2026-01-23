@@ -33,7 +33,7 @@ export async function validateSessionToken(token: string): Promise<SessionValida
   }
   const { user, ...session } = result;
   if (Date.now() >= session.expiresAt.getTime()) {
-    await prisma.session.delete({ where: { id: session.id } });
+    await prisma.session.delete({ where: { id: sessionId } });
     return { session: null, user: null };
   }
   if (Date.now() >= session.expiresAt.getTime() - 1000 * 60 * 60 * 60 * 24 * 15) {

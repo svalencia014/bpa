@@ -9,7 +9,7 @@ node_modules
 /build
 
 #Prisma
-generated/prisma/*
+generated/*
 
 # OS
 .DS_Store
