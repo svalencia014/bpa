@@ -17,17 +17,6 @@
 </svelte:head>
 
 <div class="dashboard-container">
-	<header class="dashboard-header">
-		<div class="header-content">
-			<h1>Welcome, {data.user.name}!</h1>
-			<div class="header-actions">
-				<form method="POST" action="/logout">
-					<button type="submit" class="btn-logout">Logout</button>
-				</form>
-			</div>
-		</div>
-	</header>
-
 	<main class="dashboard-main">
 		<div class="dashboard-grid">
 			<!-- Profile Card -->
@@ -79,7 +68,7 @@
 								<p>View upcoming events</p>
 							</div>
 						</a>
-						<a href="/home" class="action-item">
+						<a href="/" class="action-item">
 							<div class="action-icon">🏠</div>
 							<div class="action-text">
 								<h3>Home</h3>

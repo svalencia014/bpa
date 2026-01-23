@@ -24,3 +24,13 @@ model Session {
   expiresAt DateTime
   user User @relation(fields: [userId], references: [id])
 }
+
+model Invitation {
+  id String @id @default(uuid())
+  email String @unique
+  memberId String @unique
+  token String @unique
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+  used Boolean @default(false)
+}
