@@ -31,7 +31,7 @@
 	<NavUl {activeUrl}>
 		<NavLi href="/">Home</NavLi>
 		<NavLi href="/dashboard">Dashboard</NavLi>
-
+		<NavLi href="/calendar">Calendar</NavLi>
 		
 	</NavUl>
 </Navbar>
