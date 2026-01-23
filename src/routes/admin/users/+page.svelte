@@ -1,421 +1,184 @@
 <script lang="ts">
-	import type { PageData } from './$types';
-	import { invalidateAll } from '$app/navigation';
+  import { invalidateAll } from '$app/navigation';
+  import type { PageData } from './$types';
 
-	let { data }: { data: PageData } = $props();
-	let email = $state('');
-	let memberId = $state('');
-	let loading = $state(false);
-	let error = $state('');
-	let success = $state('');
+  let { data }: { data: PageData } = $props();
+  let email = $state('');
+  let memberId = $state('');
+  let loading = $state(false);
+  let error = $state('');
+  let success = $state('');
 
-	const formatDate = (value: string | Date) => {
-		return new Date(value).toLocaleDateString('en-US', {
-			month: 'short',
-			day: 'numeric',
-			year: 'numeric'
-		});
-	};
+  const formatDate = (value: string | Date) =>
+    new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-	const submitInvitation = async (event: Event) => {
-		event.preventDefault();
-		loading = true;
-		error = '';
-		success = '';
+  const submitInvitation = async (event: Event) => {
+    event.preventDefault();
+    loading = true;
+    error = '';
+    success = '';
 
-		try {
-			const response = await fetch('/admin/users', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ email, memberId })
-			});
+    try {
+      const response = await fetch('/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, memberId })
+      });
 
-			const result = await response.json();
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.message ?? 'Failed to create invitation');
 
-			if (!response.ok || !result.success) {
-				throw new Error(result.message ?? 'Failed to create invitation');
-			}
-
-			success = 'Invitation created. They will receive an email to finish setup.';
-			email = '';
-			memberId = '';
-			await invalidateAll();
-		} catch (err) {
-			error = err instanceof Error ? err.message : 'Something went wrong';
-		} finally {
-			loading = false;
-		}
-	};
+      success = 'Invitation created. They will receive an email to finish setup.';
+      email = '';
+      memberId = '';
+      await invalidateAll();
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Something went wrong';
+    } finally {
+      loading = false;
+    }
+  };
 </script>
 
 <svelte:head>
-	<title>User Management</title>
+  <title>User Management</title>
 </svelte:head>
 
-<div class="page">
-	<header class="page-header">
-		<div>
-			<p class="eyebrow">Admin</p>
-			<h1>User Management</h1>
-			<p class="lede">Invite students with their BPA member ID and email. Existing users are listed below.</p>
-		</div>
-	</header>
+<div class="min-h-screen bg-slate-900 text-slate-100">
+  <div class="max-w-5xl mx-auto px-4 py-8 lg:px-6 lg:py-10 space-y-6">
+    <header class="space-y-2">
+      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">Admin</p>
+      <h1 class="text-3xl font-bold text-slate-50">User Management</h1>
+      <p class="text-slate-400 max-w-3xl">
+        Invite students with their BPA member ID and email. Existing users are listed below.
+      </p>
+    </header>
 
-	<section class="grid">
-		<div class="card">
-			<div class="card-header">
-				<div>
-					<p class="eyebrow">Invitations</p>
-					<h2>Invite a student</h2>
-					<p class="hint">Students are invited; accounts are created when they accept.</p>
-				</div>
-			</div>
-			<div class="card-body">
-				<form class="form" onsubmit={submitInvitation}>
-					<label>
-						<span>Email</span>
-						<input
-							type="email"
-							name="email"
-							bind:value={email}
-							required
-							placeholder="student@example.com"
-						/>
-					</label>
+    <section class="grid gap-4 lg:gap-6 md:grid-cols-2">
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl shadow-xl">
+        <div class="border-b border-slate-800 px-5 py-4 space-y-1">
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Invitations</p>
+          <h2 class="text-lg font-semibold text-slate-50">Invite a student</h2>
+          <p class="text-sm text-slate-400">Students are invited; accounts are created when they accept.</p>
+        </div>
+        <div class="px-5 py-5">
+          <form class="space-y-4" onsubmit={submitInvitation}>
+            <label class="flex flex-col gap-2 text-sm font-semibold text-slate-200">
+              <span>Email</span>
+              <input
+                type="email"
+                name="email"
+                bind:value={email}
+                required
+                placeholder="student@example.com"
+                class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-base text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+              />
+            </label>
 
-					<label>
-						<span>BPA Member ID</span>
-						<input
-							type="text"
-							name="memberId"
-							bind:value={memberId}
-							required
-							placeholder="e.g. 123456"
-						/>
-					</label>
+            <label class="flex flex-col gap-2 text-sm font-semibold text-slate-200">
+              <span>BPA Member ID</span>
+              <input
+                type="text"
+                name="memberId"
+                bind:value={memberId}
+                required
+                placeholder="e.g. 123456"
+                class="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2.5 text-base text-slate-100 placeholder:text-slate-500 focus:border-sky-400 focus:outline-none focus:ring-2 focus:ring-sky-400/40"
+              />
+            </label>
 
-					<div class="actions">
-						<button type="submit" class="primary" disabled={loading}>
-							{#if loading}Sending…{/if}
-							{#if !loading}Send invite{/if}
-						</button>
-					</div>
+            <div class="flex justify-end">
+              <button
+                type="submit"
+                disabled={loading}
+                class="inline-flex items-center justify-center rounded-lg bg-linear-to-r from-sky-400 to-violet-500 px-4 py-2.5 text-sm font-semibold text-slate-950 shadow-lg shadow-violet-500/30 transition hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-violet-400/60 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {#if loading}Sending…{/if}
+                {#if !loading}Send invite{/if}
+              </button>
+            </div>
 
-					{#if error}
-						<p class="error">{error}</p>
-					{/if}
-					{#if success}
-						<p class="success">{success}</p>
-					{/if}
-				</form>
-			</div>
-		</div>
+            {#if error}
+              <p class="text-sm text-rose-400">{error}</p>
+            {/if}
+            {#if success}
+              <p class="text-sm text-emerald-400">{success}</p>
+            {/if}
+          </form>
+        </div>
+      </div>
 
-		<div class="card">
-			<div class="card-header">
-				<div>
-					<p class="eyebrow">Pending</p>
-					<h2>Active invitations</h2>
-					<p class="hint">Unexpired, unused invites.</p>
-				</div>
-			</div>
-			<div class="card-body">
-				{#if data.invitations.length === 0}
-					<p class="muted">No active invitations.</p>
-				{:else}
-					<div class="table invites">
-						<div class="table-head">
-							<span>Email</span>
-							<span>Member ID</span>
-							<span>Expires</span>
-						</div>
-						{#each data.invitations as invite}
-							<div class="table-row">
-								<span>{invite.email}</span>
-								<span>{invite.memberId}</span>
-								<span>{formatDate(invite.expiresAt)}</span>
-							</div>
-						{/each}
-					</div>
-				{/if}
-			</div>
-		</div>
-	</section>
+      <div class="bg-slate-950/70 border border-slate-800 rounded-xl shadow-xl">
+        <div class="border-b border-slate-800 px-5 py-4 space-y-1">
+          <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Pending</p>
+          <h2 class="text-lg font-semibold text-slate-50">Active invitations</h2>
+          <p class="text-sm text-slate-400">Unexpired, unused invites.</p>
+        </div>
+        <div class="px-5 py-5">
+          {#if data.invitations.length === 0}
+            <p class="text-sm text-slate-400">No active invitations.</p>
+          {:else}
+            <div class="grid gap-2">
+              <div class="grid grid-cols-[1.5fr_1fr_1fr] items-center gap-3 text-sm text-slate-400 border-b border-slate-800 pb-2">
+                <span>Email</span>
+                <span>Member ID</span>
+                <span>Expires</span>
+              </div>
+              {#each data.invitations as invite}
+                <div class="grid grid-cols-[1.5fr_1fr_1fr] items-center gap-3 rounded-lg px-2 py-2 text-sm text-slate-100 odd:bg-white/5">
+                  <span class="truncate">{invite.email}</span>
+                  <span class="truncate">{invite.memberId}</span>
+                  <span class="truncate">{formatDate(invite.expiresAt)}</span>
+                </div>
+              {/each}
+            </div>
+          {/if}
+        </div>
+      </div>
+    </section>
 
-	<section class="card full">
-		<div class="card-header">
-			<div>
-				<p class="eyebrow">Directory</p>
-				<h2>Existing users</h2>
-				<p class="hint">Admins are marked; students are invited, not directly created.</p>
-			</div>
-		</div>
-		<div class="card-body">
-			{#if data.users.length === 0}
-				<p class="muted">No users yet.</p>
-			{:else}
-				<div class="table">
-					<div class="table-head">
-						<span>Name</span>
-						<span>Email</span>
-						<span>Member ID</span>
-						<span>Role</span>
-						<span>Joined</span>
-					</div>
-					{#each data.users as user}
-						<div class="table-row">
-							<span>{user.name}</span>
-							<span>{user.email}</span>
-							<span>{user.memberId ?? '—'}</span>
-							<span class:admin={user.isAdmin} class="pill">{user.isAdmin ? 'Admin' : 'User'}</span>
-							<span>{formatDate(user.createdAt)}</span>
-						</div>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	</section>
+    <section class="bg-slate-950/70 border border-slate-800 rounded-xl shadow-xl">
+      <div class="border-b border-slate-800 px-5 py-4 space-y-1">
+        <p class="text-xs font-semibold uppercase tracking-[0.12em] text-slate-400">Directory</p>
+        <h2 class="text-lg font-semibold text-slate-50">Existing users</h2>
+        <p class="text-sm text-slate-400">Admins are marked; students are invited, not directly created.</p>
+      </div>
+      <div class="px-5 py-5">
+        {#if data.users.length === 0}
+          <p class="text-sm text-slate-400">No users yet.</p>
+        {:else}
+          <div class="grid gap-2">
+            <div class="hidden md:grid grid-cols-[1.4fr_1.2fr_0.9fr_0.8fr_0.9fr] items-center gap-3 text-sm text-slate-400 border-b border-slate-800 pb-2">
+              <span>Name</span>
+              <span>Email</span>
+              <span>Member ID</span>
+              <span>Role</span>
+              <span>Joined</span>
+            </div>
+
+            {#each data.users as user}
+              <div class="grid gap-2 rounded-lg px-2 py-3 text-sm text-slate-100 border border-slate-800/60 bg-slate-950/40 md:border-0 md:bg-transparent md:grid-cols-[1.4fr_1.2fr_0.9fr_0.8fr_0.9fr] md:items-center md:gap-3 md:px-0 md:py-0 md:odd:bg-white/5">
+                <div class="font-semibold truncate">{user.name}</div>
+                <div class="truncate text-slate-200">{user.email}</div>
+                <div class="truncate text-slate-200">{user.memberId ?? '—'}</div>
+                <div>
+                  {#if user.isAdmin}
+                    <span class="inline-flex items-center rounded-full bg-linear-to-r from-rose-400 to-orange-400 px-3 py-1 text-xs font-semibold text-slate-950">Admin</span>
+                  {:else}
+                    <span class="inline-flex items-center rounded-full bg-slate-800 px-3 py-1 text-xs font-semibold text-slate-100">User</span>
+                  {/if}
+                </div>
+                <div class="text-slate-200">{formatDate(user.createdAt)}</div>
+
+                <div class="md:hidden flex flex-wrap gap-2 text-xs text-slate-400">
+                  <span class="px-2 py-1 rounded bg-slate-800/60">Role: {user.isAdmin ? 'Admin' : 'User'}</span>
+                  <span class="px-2 py-1 rounded bg-slate-800/60">Joined: {formatDate(user.createdAt)}</span>
+                </div>
+              </div>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    </section>
+  </div>
 </div>
-
-<style>
-	:global(body) {
-		margin: 0;
-		font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-		background: #0f172a;
-		color: #0b1221;
-	}
-
-	.page {
-		max-width: 1100px;
-		margin: 0 auto;
-		padding: 2rem 1.5rem 3rem;
-	}
-
-	.page-header h1 {
-		margin: 0.25rem 0 0.4rem;
-		color: #e2e8f0;
-	}
-
-	.page-header .lede {
-		margin: 0;
-		color: #94a3b8;
-	}
-
-	.eyebrow {
-		text-transform: uppercase;
-		letter-spacing: 0.08em;
-		font-size: 0.75rem;
-		color: #94a3b8;
-		margin: 0;
-	}
-
-	.hint {
-		margin: 0.25rem 0 0;
-		color: #94a3b8;
-		font-size: 0.9rem;
-	}
-
-	.grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-		gap: 1.25rem;
-		margin-bottom: 1.5rem;
-	}
-
-	.card {
-		background: #0b1221;
-		border: 1px solid #1f2937;
-		border-radius: 14px;
-		box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
-		overflow: hidden;
-	}
-
-	.card.full {
-		margin-top: 1rem;
-	}
-
-	.card-header {
-		padding: 1.25rem 1.5rem 0.75rem;
-		border-bottom: 1px solid #1f2937;
-	}
-
-	.card-header h2 {
-		margin: 0.15rem 0 0.25rem;
-		color: #e2e8f0;
-	}
-
-	.card-body {
-		padding: 1.25rem 1.5rem 1.5rem;
-	}
-
-	.form {
-		display: flex;
-		flex-direction: column;
-		gap: 1rem;
-	}
-
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.35rem;
-		color: #e2e8f0;
-		font-weight: 600;
-	}
-
-	input {
-		padding: 0.75rem 0.85rem;
-		border-radius: 10px;
-		border: 1px solid #273449;
-		background: #111827;
-		color: #e2e8f0;
-		font-size: 1rem;
-	}
-
-	input:focus {
-		outline: 2px solid #60a5fa;
-		border-color: #60a5fa;
-	}
-
-	.actions {
-		display: flex;
-		justify-content: flex-end;
-	}
-
-	button {
-		border: none;
-		border-radius: 10px;
-		padding: 0.75rem 1.25rem;
-		font-weight: 700;
-		cursor: pointer;
-		transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
-	}
-
-	button:disabled {
-		opacity: 0.6;
-		cursor: not-allowed;
-	}
-
-	button.primary {
-		background: linear-gradient(135deg, #60a5fa, #7c3aed);
-		color: #0b1221;
-		box-shadow: 0 10px 30px rgba(124, 58, 237, 0.3);
-	}
-
-	button.primary:hover:not(:disabled) {
-		transform: translateY(-1px);
-		box-shadow: 0 14px 32px rgba(124, 58, 237, 0.35);
-	}
-
-	.error {
-		color: #f87171;
-		margin: 0.25rem 0 0;
-	}
-
-	.success {
-		color: #34d399;
-		margin: 0.25rem 0 0;
-	}
-
-	.muted {
-		color: #94a3b8;
-		margin: 0;
-	}
-
-	.table {
-		display: grid;
-		gap: 0.5rem;
-	}
-
-	.table.invites .table-head,
-	.table.invites .table-row {
-		grid-template-columns: 1.5fr 1fr 1fr;
-	}
-
-	.table-head,
-	.table-row {
-		display: grid;
-		grid-template-columns: 1.5fr 1fr 0.8fr 0.8fr 0.8fr;
-		gap: 0.75rem;
-		align-items: center;
-	}
-
-	.table-head {
-		color: #94a3b8;
-		font-size: 0.9rem;
-		border-bottom: 1px solid #1f2937;
-		padding-bottom: 0.35rem;
-	}
-
-	.table-row {
-		padding: 0.5rem 0;
-		color: #e2e8f0;
-		border-bottom: 1px solid #0f172a;
-	}
-
-	.table-row:last-child {
-		border-bottom: none;
-	}
-
-	.table-row span {
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
-
-	.table .table-row:nth-child(odd) {
-		background: rgba(255, 255, 255, 0.02);
-		padding: 0.5rem;
-		border-radius: 10px;
-	}
-
-	.pill {
-		display: inline-block;
-		padding: 0.35rem 0.75rem;
-		border-radius: 999px;
-		background: #111827;
-		text-align: center;
-		min-width: 60px;
-	}
-
-	.pill.admin {
-		background: linear-gradient(135deg, #fb7185, #f97316);
-		color: #0b1221;
-		font-weight: 700;
-	}
-
-	@media (max-width: 900px) {
-		.table-head,
-		.table-row {
-			grid-template-columns: repeat(3, 1fr);
-			grid-auto-rows: auto;
-			row-gap: 0.35rem;
-		}
-
-		.table-head span:nth-child(n+4),
-		.table-row span:nth-child(n+4) {
-			display: none;
-		}
-	}
-
-	@media (max-width: 640px) {
-		.grid {
-			grid-template-columns: 1fr;
-		}
-
-		.page {
-			padding: 1.5rem 1rem 2.5rem;
-		}
-
-		.table-head,
-		.table-row {
-			grid-template-columns: 1fr;
-		}
-
-		.table-head span:nth-child(n+2),
-		.table-row span:nth-child(n+2) {
-			display: block;
-		}
-	}
-</style>
