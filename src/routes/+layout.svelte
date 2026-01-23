@@ -14,28 +14,30 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
-<Navbar class="bg-white">
-	<NavBrand href="/">
-		<!--Todo: Add horizontal BPA logo-->
-		<!-- Placeholder: -->
-		<p>Flashes BPA</p>
-	</NavBrand>
-	<div class="flex md:order-2">
-		{#if page.data.user == null}
-			<Button size="sm" href="/login">Login</Button>
-		{:else}
-			<Button size="sm" href="/logout">Logout</Button>
-		{/if}
-		<NavHamburger />
-	</div>
-	<NavUl {activeUrl}>
-		<NavLi href="/">Home</NavLi>
-		<NavLi href="/dashboard">Dashboard</NavLi>
-		<NavLi href="/calendar">Calendar</NavLi>
-		
-	</NavUl>
-</Navbar>
+<div class="h-screen">
+	<Navbar class="bg-white">
+		<NavBrand href="/">
+			<!--Todo: Add horizontal BPA logo-->
+			<!-- Placeholder: -->
+			<p>Flashes BPA</p>
+		</NavBrand>
+		<div class="flex md:order-2">
+			{#if page.data.user == null}
+				<Button size="sm" href="/login">Login</Button>
+			{:else}
+				<Button size="sm" href="/logout" color="blue">Logout</Button>
+			{/if}
+			<NavHamburger />
+		</div>
+		<NavUl {activeUrl} classes={{ active: "text-blue-700!" }}>
+			<NavLi href="/">Home</NavLi>
+			<NavLi href="/dashboard">Dashboard</NavLi>
+			<NavLi href="/calendar">Calendar</NavLi>
+			
+		</NavUl>
+	</Navbar>
 
-<div class="pt-2">
-	{@render children()}
+	<div class="pt-2">
+		{@render children()}
+	</div>
 </div>
