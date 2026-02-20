@@ -16,7 +16,7 @@
 	<title>Dashboard - {data.user.name}</title>
 </svelte:head>
 
-<div class="min-h-screen bg-gradient-to-br from-indigo-500 via-purple-500 to-violet-600 text-slate-50">
+<div class="min-h-screen bg-linear-to-br from-indigo-500 via-purple-500 to-violet-600 text-slate-50">
 	<div class="max-w-6xl mx-auto px-4 py-8 lg:px-8 lg:py-12 space-y-8">
 		<header class="flex flex-col gap-2">
 			<p class="text-xs font-semibold uppercase tracking-[0.14em] text-slate-200/80">Welcome</p>
@@ -54,7 +54,7 @@
 						{/if}
 						<div class="flex justify-between gap-4 px-4 py-3">
 							<span class="text-sm text-slate-100/80">Account Type</span>
-							<span class={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${data.user.isAdmin ? 'bg-gradient-to-r from-pink-400 to-orange-400 text-slate-900' : 'bg-emerald-500/90 text-white'}`}>
+							<span class={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${data.user.isAdmin ? 'bg-linear-to-r from-pink-400 to-orange-400 text-slate-900' : 'bg-emerald-500/90 text-white'}`}>
 								{data.user.isAdmin ? 'Admin' : 'User'}
 							</span>
 						</div>
@@ -79,7 +79,7 @@
 							<p class="text-slate-100/80 text-sm">View upcoming events</p>
 						</div>
 					</a>
-					<a href="/home" class="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition hover:border-white/30 hover:bg-white/10">
+					<a href="/" class="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition hover:border-white/30 hover:bg-white/10">
 						<span class="text-xl">🏠</span>
 						<div>
 							<p class="text-base font-semibold">Home</p>
@@ -87,7 +87,7 @@
 						</div>
 					</a>
 					{#if data.user.isAdmin}
-						<a href="/admin/users" class="flex items-center gap-3 rounded-lg border border-white/10 bg-gradient-to-r from-amber-200/80 via-pink-200/80 to-rose-200/80 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:shadow-lg">
+						<a href="/admin/users" class="flex items-center gap-3 rounded-lg border border-white/10 bg-linear-to-r from-amber-200/80 via-pink-200/80 to-rose-200/80 px-4 py-3 text-sm font-semibold text-slate-900 transition hover:shadow-lg">
 							<span class="text-xl">👥</span>
 							<div>
 								<p class="text-base font-semibold">Manage Users</p>

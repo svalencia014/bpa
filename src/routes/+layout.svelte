@@ -29,8 +29,7 @@
 			{/if}
 			<NavHamburger />
 		</div>
-		<NavUl {activeUrl} classes={{ active: "text-blue-700!" }}>
-			<NavLi href="/">Home</NavLi>
+		<NavUl {activeUrl} classes={{ active: "text-blue-700!"}}>
 			<NavLi href="/dashboard">Dashboard</NavLi>
 			<NavLi href="/calendar">Calendar</NavLi>
 			
