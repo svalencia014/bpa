@@ -1,6 +1,7 @@
 <script lang="ts">
     // Simple month-view calendar template
     import { onMount } from 'svelte';
+	import type { Event } from '../../../generated/prisma/client';
 
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -9,10 +10,7 @@
     let selected: Date | null = null;
     let newTaskText = '';
     // event inputs
-    let newEventTitle = '';
-    let newEventStart = '';
-    let newEventEnd = '';
-    let newEventLocation = '';
+    let newEvent: Event | undefined = $state(undefined);
     let showEventForm = false;
     // tasks/events stored as { 'YYYY-MM-DD': [{ type:'task'|'event', text/title, createdAt, done, start, end, location }, ...] }
     let tasks: Record<string, any[]> = {};
@@ -39,7 +37,8 @@
         return `${year}-${mm}-${dd}`;
     }
 
-    function dateKey(dateObj: Date) {
+    function dateKey(dateObj: Date | null) {
+        if (!dateObj) return '';
         return dateKeyFromParts(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
     }
 
@@ -55,27 +54,16 @@
     }
 
     function addEvent() {
-        if (!selected || !newEventTitle.trim()) return;
-        const key = dateKey(selected);
-        tasks[key] = tasks[key] || [];
-        tasks[key].push({
-            type: 'event',
-            title: newEventTitle.trim(),
-            start: newEventStart.trim() || null,
-            end: newEventEnd.trim() || null,
-            location: newEventLocation.trim() || null,
-            createdAt: Date.now()
-        });
-        newEventTitle = '';
-        newEventStart = '';
-        newEventEnd = '';
-        newEventLocation = '';
+        if (newEvent == undefined) return;
+        newEvent.name = '';
+        newEvent.dateStart = new Date();
+        newEvent.dateEnd = new Date();
+        newEvent.location = '';
         showEventForm = false;
-        localStorage.setItem('calendar_tasks', JSON.stringify(tasks));
         tasks = { ...tasks };
     }
 
-    function removeTask(key, idx) {
+    function removeTask(key: string, idx: number) {
         if (!tasks[key]) return;
         tasks[key].splice(idx, 1);
         if (tasks[key].length === 0) delete tasks[key];
@@ -83,7 +71,7 @@
         tasks = { ...tasks };
     }
 
-    function toggleDone(key, idx) {
+    function toggleDone(key: string, idx: number) {
         if (!tasks[key] || !tasks[key][idx]) return;
         tasks[key][idx].done = !tasks[key][idx].done;
         localStorage.setItem('calendar_tasks', JSON.stringify(tasks));
@@ -91,7 +79,7 @@
     }
 
     // build array for a 6x7 grid (weeks x weekdays)
-    $: grid = (() => {
+    const grid = $derived.by(() => {
         const year = displayed.getFullYear();
         const month = displayed.getMonth();
         const firstDow = new Date(year, month, 1).getDay(); // 0..6
@@ -112,16 +100,16 @@
             cells.push({ day: cells.length - (firstDow + daysInMonth) + 1, inMonth: false });
         }
         return cells;
-    })();
+    });
 
-    function isTodayCell(cell) {
+    function isTodayCell(cell: { day: number; inMonth: boolean }) {
         if (!cell.inMonth) return false;
         return displayed.getFullYear() === today.getFullYear() &&
             displayed.getMonth() === today.getMonth() &&
             cell.day === today.getDate();
     }
 
-    function isSelectedCell(cell) {
+    function isSelectedCell(cell: { day: number; inMonth: boolean }) {
         if (!cell.inMonth || !selected) return false;
         return displayed.getFullYear() === selected.getFullYear() &&
             displayed.getMonth() === selected.getMonth() &&
@@ -129,15 +117,15 @@
     }
 
     // drag-and-drop state
-    let draggedTask = null;
-    let dragOverKey = null;
+    let draggedTask: { key: string; idx: number; task: any } | null = null;
+    let dragOverKey: string | null = null;
 
-    function dragStart(key, idx, e) {
+    function dragStart(key: string, idx: number, e: DragEvent) {
         // store a lightweight payload, and also put it on dataTransfer for cross-window support
         draggedTask = { key, idx, task: tasks[key][idx] };
         try {
             e.dataTransfer?.setData('text/plain', JSON.stringify({ key, idx }));
-            e.dataTransfer!.effectAllowed = 'move';
+            if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
         } catch (err) {
             // ignore
         }
@@ -148,21 +136,21 @@
         dragOverKey = null;
     }
 
-    function handleDragOver(e) {
+    function handleDragOver(e: DragEvent) {
         // allow drop
         e.preventDefault();
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
     }
 
-    function handleDragEnter(key/*, e */) {
+    function handleDragEnter(key: string, e?: DragEvent) {
         dragOverKey = key;
     }
 
-    function handleDragLeave(key/*, e */) {
+    function handleDragLeave(key: string, e?: DragEvent) {
         if (dragOverKey === key) dragOverKey = null;
     }
 
-    function handleDrop(targetKey, e) {
+    function handleDrop(targetKey: string, e: DragEvent) {
         e.preventDefault();
         let payload = null;
         try {
@@ -200,7 +188,7 @@
                 const parsed = JSON.parse(raw) || {};
                 // migrate legacy items to include 'type'
                 for (const k in parsed) {
-                    parsed[k] = (parsed[k] || []).map((it) => it.type ? it : { ...it, type: 'task' });
+                    parsed[k] = (parsed[k] || []).map((it: any) => it.type ? it : { ...it, type: 'task' });
                 }
                 tasks = parsed;
             }
@@ -383,8 +371,10 @@
         {#each grid as cell}
             <div
                 role="gridcell"
+                tabindex={cell.inMonth ? 0 : -1}
                 class="cell {cell.inMonth ? 'in' : 'out'} {isTodayCell(cell) ? 'today' : ''} {isSelectedCell(cell) ? 'selected' : ''} {dragOverKey === (cell.inMonth ? dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day) : '') ? 'drag-over' : ''}"
                 on:click={() => { if (cell.inMonth) selectDay(cell.day); }}
+                on:keydown={(e) => { if (cell.inMonth && (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar')) selectDay(cell.day); }}
                 on:dragover|preventDefault={handleDragOver}
                 on:dragenter={(e) => cell.inMonth && handleDragEnter(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), e)}
                 on:dragleave={(e) => cell.inMonth && handleDragLeave(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), e)}
@@ -400,7 +390,7 @@
                             <div class="task-preview">
                                 {#each tasks[dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day)] as t, i}
                                     {#if i < 2}
-                                        <div class={t.type === 'event' ? 'event-badge' : 'task-badge'} title={t.type === 'event' ? `${t.title}${t.start ? ' • '+t.start+(t.end? ' - '+t.end:'') : ''}${t.location? ' @ '+t.location: ''}` : t.text} class:done={t.done} draggable="true" on:dragstart={(e) => dragStart(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), i, e)} on:dragend={dragEnd}>
+                                        <div role="button" tabindex="0" class={t.type === 'event' ? 'event-badge' : 'task-badge'} title={t.type === 'event' ? `${t.title}${t.start ? ' • '+t.start+(t.end? ' - '+t.end:'') : ''}${t.location? ' @ '+t.location: ''}` : t.text} class:done={t.done} draggable="true" on:dragstart={(e) => dragStart(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), i, e)} on:dragend={dragEnd}>
                                             {t.type === 'event' ? (t.start ? t.start + ' ' : '') + t.title : t.text}
                                         </div>
                                     {/if}
@@ -435,10 +425,10 @@
             <div class="selected-tasks-title">Items for {selected.toDateString()}</div>
             {#if showEventForm}
                 <div style="display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap">
-                    <input placeholder="Event title" bind:value={newEventTitle} />
-                    <input type="time" bind:value={newEventStart} />
-                    <input type="time" bind:value={newEventEnd} />
-                    <input placeholder="Location" bind:value={newEventLocation} />
+                    <input placeholder="Event title" bind:value={Event.name} />
+                    <input type="datetime" bind:value={Event.dateStart} />
+                    <input type="datetime" bind:value={Event.dateEnd} />
+                    <input placeholder="Location" bind:value={Event.location} />
                     <button on:click={addEvent}>Add Event</button>
                     <button on:click={() => { showEventForm = false; }}>Cancel</button>
                 </div>

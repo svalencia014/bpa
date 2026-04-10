@@ -79,7 +79,7 @@
 							<p class="text-slate-100/80 text-sm">View upcoming events</p>
 						</div>
 					</a>
-					<a href="/home" class="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition hover:border-white/30 hover:bg-white/10">
+					<a href="/" class="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium transition hover:border-white/30 hover:bg-white/10">
 						<span class="text-xl">🏠</span>
 						<div>
 							<p class="text-base font-semibold">Home</p>

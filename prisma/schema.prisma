@@ -34,3 +34,13 @@ model Invitation {
   expiresAt DateTime
   used Boolean @default(false)
 }
+
+model Event {
+  id String @id @default(uuid())
+  name String
+  description String?
+  dateStart DateTime
+  dateEnd DateTime
+  createdAt DateTime @default(now())
+  location String?
+}
