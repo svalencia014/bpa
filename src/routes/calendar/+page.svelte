@@ -425,10 +425,10 @@
             <div class="selected-tasks-title">Items for {selected.toDateString()}</div>
             {#if showEventForm}
                 <div style="display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap">
-                    <input placeholder="Event title" bind:value={Event.name} />
-                    <input type="datetime" bind:value={Event.dateStart} />
-                    <input type="datetime" bind:value={Event.dateEnd} />
-                    <input placeholder="Location" bind:value={Event.location} />
+                    <input placeholder="Event title" bind:value={newEvent!.name} />
+                    <input type="datetime" bind:value={newEvent!.dateStart} />
+                    <input type="datetime" bind:value={newEvent!.dateEnd} />
+                    <input placeholder="Location" bind:value={newEvent!.location} />
                     <button on:click={addEvent}>Add Event</button>
                     <button on:click={() => { showEventForm = false; }}>Cancel</button>
                 </div>
