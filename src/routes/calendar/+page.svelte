@@ -1,19 +1,52 @@
 <script lang="ts">
     // Simple month-view calendar template
+    import { page } from "$app/state";
     import { onMount } from 'svelte';
-	import type { Event } from '../../../generated/prisma/client';
+	import type { Event } from "../../../generated/prisma/client";
+
+    type CalendarTask = {
+        type: 'task';
+        text: string;
+        createdAt: number;
+        done: boolean;
+    };
+
+    type CalendarEventForm = {
+        type: 'event';
+        name: string;
+        start: string;
+        end: string;
+        location: string;
+        createdAt: Date;
+    };
+
+    type CalendarEventItem = {
+        type: 'event';
+        id: string;
+        name: string;
+        start: string;
+        end: string;
+        location: string;
+        createdAt: Date;
+    };
+
+    type CalendarItem = CalendarTask | CalendarEventItem;
 
     const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    let today = new Date();
-    let displayed = new Date(today.getFullYear(), today.getMonth(), 1);
-    let selected: Date | null = null;
-    let newTaskText = '';
+    const events: Event[] = $state(page.data.events);
+
+    let today = $state(new Date());
+    let displayed = $state(new Date());
+    let selected = $state<Date | null>(null);
+    let newTaskText = $state('');
     // event inputs
-    let newEvent: Event | undefined = $state(undefined);
-    let showEventForm = false;
-    // tasks/events stored as { 'YYYY-MM-DD': [{ type:'task'|'event', text/title, createdAt, done, start, end, location }, ...] }
-    let tasks: Record<string, any[]> = {};
+    let newEvent: CalendarEventForm | undefined = $state(undefined);
+    let showEventForm = $state(false);
+    let eventError = $state('');
+    let eventSaving = $state(false);
+    // tasks/events stored as { 'YYYY-MM-DD': [{ type:'task'|'event', text, createdAt, done, start, end, location }, ...] }
+    let tasks = $state<Record<string, CalendarItem[]>>({});
 
     function prevMonth() {
         displayed = new Date(displayed.getFullYear(), displayed.getMonth() - 1, 1);
@@ -42,39 +75,103 @@
         return dateKeyFromParts(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
     }
 
+    function getDefaultEvent(): CalendarEventForm {
+        const value = new Date().toISOString().slice(0, 16);
+        return { type: 'event', name: '', start: value, end: value, location: '', createdAt: new Date() };
+    }
+
+    function formatEventTime(value: Date): string {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return value.toString();
+        return date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function mapDbEvent(event: Event): CalendarEventItem {
+        return {
+            type: 'event',
+            id: event.id,
+            name: event.name,
+            start: formatEventTime(event.dateStart),
+            end: formatEventTime(event.dateEnd),
+            location: event.location ?? '',
+            createdAt: event.createdAt,
+        };
+    }
+
+    function isTaskItem(item: CalendarItem): item is CalendarTask {
+        return item.type === 'task';
+    }
+
     function addTask() {
         if (!selected || !newTaskText.trim()) return;
         const key = dateKey(selected);
         tasks[key] = tasks[key] || [];
         tasks[key].push({ type: 'task', text: newTaskText.trim(), createdAt: Date.now(), done: false });
         newTaskText = '';
-        // persist and trigger reactivity
-        localStorage.setItem('calendar_tasks', JSON.stringify(tasks));
         tasks = { ...tasks };
     }
 
-    function addEvent() {
-        if (newEvent == undefined) return;
-        newEvent.name = '';
-        newEvent.dateStart = new Date();
-        newEvent.dateEnd = new Date();
-        newEvent.location = '';
-        showEventForm = false;
-        tasks = { ...tasks };
+    async function addEvent() {
+        if (!newEvent) return;
+        eventSaving = true;
+        eventError = '';
+
+        const payload = {
+            name: newEvent.name,
+            dateStart: newEvent.start,
+            dateEnd: newEvent.end,
+            location: newEvent.location || undefined,
+        };
+
+        try {
+            const response = await fetch('/calendar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                eventError = errorText || 'Could not save event.';
+                return;
+            }
+
+            const createdEvent = await response.json();
+            const key = dateKey(new Date(createdEvent.dateStart));
+            if (key) {
+                tasks[key] = tasks[key] || [];
+                tasks[key].push(mapDbEvent(createdEvent));
+                tasks = { ...tasks };
+            }
+
+            showEventForm = false;
+            newEvent = getDefaultEvent();
+        } catch (error) {
+            eventError = 'Unable to save event.';
+            console.error('Event save failed:', error);
+        } finally {
+            eventSaving = false;
+        }
+    }
+
+    function toggleEventForm() {
+        if (!newEvent) newEvent = getDefaultEvent();
+        showEventForm = !showEventForm;
     }
 
     function removeTask(key: string, idx: number) {
         if (!tasks[key]) return;
         tasks[key].splice(idx, 1);
         if (tasks[key].length === 0) delete tasks[key];
-        localStorage.setItem('calendar_tasks', JSON.stringify(tasks));
+
         tasks = { ...tasks };
     }
 
     function toggleDone(key: string, idx: number) {
         if (!tasks[key] || !tasks[key][idx]) return;
-        tasks[key][idx].done = !tasks[key][idx].done;
-        localStorage.setItem('calendar_tasks', JSON.stringify(tasks));
+        const item = tasks[key][idx];
+        if (!isTaskItem(item)) return;
+        item.done = !item.done;
         tasks = { ...tasks };
     }
 
@@ -117,8 +214,8 @@
     }
 
     // drag-and-drop state
-    let draggedTask: { key: string; idx: number; task: any } | null = null;
-    let dragOverKey: string | null = null;
+    let draggedTask = $state<{ key: string; idx: number; task: any } | null>(null);
+    let dragOverKey = $state<string | null>(null);
 
     function dragStart(key: string, idx: number, e: DragEvent) {
         // store a lightweight payload, and also put it on dataTransfer for cross-window support
@@ -173,230 +270,80 @@
         // add to target
         tasks[targetKey] = tasks[targetKey] || [];
         tasks[targetKey].push(item);
-        // persist and trigger reactivity
-        localStorage.setItem('calendar_tasks', JSON.stringify(tasks));
         tasks = { ...tasks };
         dragEnd();
     }
 
-    // optional: initialize selected to today
+    // optional: initialize selected and displayed to today
     onMount(() => {
         selected = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        try {
-            const raw = localStorage.getItem('calendar_tasks');
-            if (raw) {
-                const parsed = JSON.parse(raw) || {};
-                // migrate legacy items to include 'type'
-                for (const k in parsed) {
-                    parsed[k] = (parsed[k] || []).map((it: any) => it.type ? it : { ...it, type: 'task' });
-                }
-                tasks = parsed;
-            }
-        } catch (e) {
-            tasks = {};
+        displayed = new Date(today.getFullYear(), today.getMonth(), 1);
+
+        for (const event of events) {
+            const eventDate = new Date(event.dateStart);
+            const key = dateKey(eventDate);
+            if (!key) continue;
+            tasks[key] = tasks[key] || [];
+            tasks[key].push(mapDbEvent(event));
         }
     });
 </script>
 
-<style>
-    .calendar {
-        /* fill the viewport */
-        width: 100vw;
-        height: 100vh;
-        max-width: none;
-        box-sizing: border-box;
-        display: flex;
-        flex-direction: column;
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 12px;
-        font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-        background: #fff;
-    }
-    .header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-    .nav button {
-        padding: 6px 10px;
-        margin: 0 4px;
-        border: 1px solid #ccc;
-        background: #fff;
-        border-radius: 4px;
-        cursor: pointer;
-    }
-    .month {
-        font-weight: 600;
-    }
-    .weekdays {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        text-align: center;
-        font-size: 12px;
-        color: #666;
-        margin-bottom: 6px;
-    }
-    .grid {
-        display: grid;
-        grid-template-columns: repeat(7, 1fr);
-        /* make 6 equal-height rows that expand to fill available space */
-        grid-template-rows: repeat(6, 1fr);
-        gap: 6px;
-        /* allow the grid to grow within the flex column layout */
-        flex: 1 1 auto;
-        min-height: 0;
-    }
-    .cell {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 6px;
-        cursor: pointer;
-        user-select: none;
-        /* allow grid rows to size the cells */
-        height: auto;
-        transition: background .12s ease, transform .08s ease, box-shadow .12s ease;
-    }
-    /* visual indicator on mouse hover */
-    .cell:hover {
-        background: #f5fbff;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 10px rgba(2,86,179,0.06);
-    }
 
-    /* when a draggable item is over the cell */
-    .cell.drag-over {
-        background: linear-gradient(180deg, #e6f2ff, #dff0ff);
-        border: 2px dashed rgba(3,102,214,0.45);
-        transform: translateY(-2px);
-    }
 
-    .cell.out {
-        color: #aaa;
-        background: #fafafa;
-    }
-
-    /* show grab cursor for draggable tasks */
-    .task-badge[draggable="true"], .selected-tasks li[draggable="true"] { cursor: grab }
-
-    .cell.in {
-        background: #fff;
-    }
-    .cell.today {
-        border: 1px solid #0078d4;
-        color: #0078d4;
-        font-weight: 600;
-    }
-    .cell.selected {
-        background: linear-gradient(180deg, #0366d6, #0256b3);
-        color: #fff;
-        box-shadow: 0 8px 20px rgba(3,102,214,0.28);
-        transform: translateY(-3px);
-        border-radius: 8px;
-        border: 2px solid rgba(3,102,214,0.15);
-    }
-
-    /* keyboard focus + accessibility */
-    .cell:focus {
-        outline: 3px solid rgba(3,102,214,0.18);
-        outline-offset: 2px;
-    }
-
-    /* selected-day inner emphasis */
-    .cell.selected .cell-day { font-weight: 700; }
-    .cell.selected .task-badge { background: rgba(255,255,255,0.12); color: #fff }
-    .footer {
-        margin-top: 10px;
-        display:flex;
-        justify-content: space-between;
-        align-items:center;
-        font-size: 14px;
-    }
-    .small {
-        font-size: 13px;
-        color: #444;
-    }
-
-    /* task styles */
-    .cell-inner{
-        width:100%;
-        height:100%;
-        display:flex;
-        flex-direction:column;
-        padding:6px;
-        box-sizing:border-box;
-    }
-    .cell-day{ font-weight:600; margin-bottom:4px; }
-    .task-preview{ display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
-    .task-badge{ background:#f0f4ff; color:#073; padding:2px 6px; border-radius:999px; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70%; }
-    .task-badge.done{ background:#eee; color:#777; text-decoration:line-through; opacity:0.7 }
-    .event-badge{ background:#fff4e6; color:#a45; padding:2px 6px; border-radius:6px; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:70%; border:1px solid #ffe2b3; }
-    .event-badge[draggable="true"] { cursor: grab }
-    .task-more{ font-size:11px; color:#666 }
-
-    .footer .task-input{ display:flex; gap:8px; align-items:center; }
-    .task-input input{ padding:6px 8px; border:1px solid #ccc; border-radius:6px; }
-    .task-input button{ padding:6px 10px; border-radius:6px; border:1px solid #0078d4; background:#0078d4; color:#fff; cursor:pointer }
-
-    .selected-tasks{ padding:12px; background:#fafafa; border-top:1px solid #eee; }
-    .selected-tasks-title{ font-weight:600; margin-bottom:8px }
-    .selected-tasks ul{ list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px }
-    .selected-tasks li{ display:flex; justify-content:space-between; align-items:center; background:#fff; padding:6px 8px; border-radius:6px; border:1px solid #eee }
-    .selected-tasks li span.done{ text-decoration:line-through; color:#666 }
-    .selected-tasks li .remove{ background:transparent; border:none; color:#c00; cursor:pointer }
-    .no-tasks{ color:#666; }
-</style>
-
-<div class="calendar" role="application" aria-label="Calendar">
-    <div class="header">
-        <div class="nav">
-            <button aria-label="Previous month" on:click={prevMonth}>&lt;</button>
-            <button aria-label="Today" on:click={goToToday}>Today</button>
-            <button aria-label="Next month" on:click={nextMonth}>&gt;</button>
+<div class="w-screen h-screen max-w-none box-border flex flex-col border border-slate-300 rounded-xl p-3 font-sans bg-white" role="application" aria-label="Calendar">
+    <div class="flex items-center justify-between mb-3">
+        <div class="flex items-center">
+            <button aria-label="Previous month" onclick={prevMonth} class="px-3 py-2 mx-1 border border-slate-300 bg-white rounded-md hover:bg-slate-50">&lt;</button>
+            <button aria-label="Today" onclick={goToToday} class="px-3 py-2 mx-1 border border-slate-300 bg-white rounded-md hover:bg-slate-50">Today</button>
+            <button aria-label="Next month" onclick={nextMonth} class="px-3 py-2 mx-1 border border-slate-300 bg-white rounded-md hover:bg-slate-50">&gt;</button>
         </div>
-        <div class="month" aria-live="polite">
+        <div class="font-semibold" aria-live="polite">
             {displayed.toLocaleString(undefined, { month: 'long' })} {displayed.getFullYear()}
         </div>
     </div>
 
-    <div class="weekdays">
+    <div class="grid grid-cols-7 text-center text-xs text-slate-600 mb-2">
         {#each weekdays as wd}
             <div>{wd}</div>
         {/each}
     </div>
 
-    <div class="grid" role="grid">
+    <div class="grid grid-cols-7 grid-rows-6 gap-1 flex-1 min-h-0" role="grid">
         {#each grid as cell}
             <div
                 role="gridcell"
                 tabindex={cell.inMonth ? 0 : -1}
-                class="cell {cell.inMonth ? 'in' : 'out'} {isTodayCell(cell) ? 'today' : ''} {isSelectedCell(cell) ? 'selected' : ''} {dragOverKey === (cell.inMonth ? dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day) : '') ? 'drag-over' : ''}"
-                on:click={() => { if (cell.inMonth) selectDay(cell.day); }}
-                on:keydown={(e) => { if (cell.inMonth && (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar')) selectDay(cell.day); }}
-                on:dragover|preventDefault={handleDragOver}
-                on:dragenter={(e) => cell.inMonth && handleDragEnter(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), e)}
-                on:dragleave={(e) => cell.inMonth && handleDragLeave(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), e)}
-                on:drop={(e) => cell.inMonth && handleDrop(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), e)}
+                class={
+                    `flex items-center justify-center rounded-xl cursor-pointer select-none h-auto transition duration-150 ease-out ${cell.inMonth ? 'bg-white' : 'text-slate-400 bg-slate-50'} ` +
+                    `${isTodayCell(cell) ? 'border border-blue-600 text-blue-600 font-semibold' : ''} ` +
+                    `${isSelectedCell(cell) ? 'bg-linear-to-b from-blue-700 to-blue-800 text-white shadow-[0_8px_20px_rgba(3,102,214,0.28)] -translate-y-1 border-2 border-blue-200' : ''} ` +
+                    `${dragOverKey === (cell.inMonth ? dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day) : '') ? 'bg-linear-to-b from-slate-100 to-slate-50 border-2 border-dashed border-blue-300' : ''}`
+                }
+                onclick={() => { if (cell.inMonth) selectDay(cell.day); }}
+                onkeydown={(e) => { if (cell.inMonth && (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar')) selectDay(cell.day); }}
+                ondragover={handleDragOver}
+                ondragenter={(e) => cell.inMonth && handleDragEnter(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), e)}
+                ondragleave={(e) => cell.inMonth && handleDragLeave(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), e)}
+                ondrop={(e) => cell.inMonth && handleDrop(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), e)}
                 aria-selected={isSelectedCell(cell)}
                 aria-current={isTodayCell(cell) ? 'date' : undefined}
                 title={cell.inMonth ? `${cell.day} ${displayed.toLocaleString(undefined,{month:'long'})}` : ''}
             >
-                <div class="cell-inner">
-                    <div class="cell-day">{cell.day}</div>
+                <div class="w-full h-full flex flex-col p-2 box-border">
+                    <div class="font-semibold mb-1">{cell.day}</div>
                     {#if cell.inMonth}
                         {#if tasks[dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day)]}
-                            <div class="task-preview">
+                            <div class="flex gap-1 items-center flex-wrap">
                                 {#each tasks[dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day)] as t, i}
                                     {#if i < 2}
-                                        <div role="button" tabindex="0" class={t.type === 'event' ? 'event-badge' : 'task-badge'} title={t.type === 'event' ? `${t.title}${t.start ? ' • '+t.start+(t.end? ' - '+t.end:'') : ''}${t.location? ' @ '+t.location: ''}` : t.text} class:done={t.done} draggable="true" on:dragstart={(e) => dragStart(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), i, e)} on:dragend={dragEnd}>
-                                            {t.type === 'event' ? (t.start ? t.start + ' ' : '') + t.title : t.text}
+                                        <div role="button" tabindex="0" class={t.type === 'event' ? 'bg-amber-100 text-orange-700 border border-amber-200 px-2 py-0.5 rounded-md text-[11px] whitespace-nowrap overflow-hidden overflow-ellipsis max-w-[70%]' : 'bg-slate-100 text-emerald-800 px-2 py-0.5 rounded-full text-[11px] whitespace-nowrap overflow-hidden overflow-ellipsis max-w-[70%]'} class:line-through={t.type === 'task' && t.done} class:text-slate-600={t.type === 'task' && t.done} class:opacity-70={t.type === 'task' && t.done} draggable="true" ondragstart={(e) => dragStart(dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day), i, e)} ondragend={dragEnd}>
+                                            {t.type === 'event' ? (t.start ? t.start + ' ' : '') + t.name : t.text}
                                         </div>
                                     {/if}
                                 {/each}
                                 {#if tasks[dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day)].length > 2}
-                                    <div class="task-more">+{tasks[dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day)].length - 2}</div>
+                                    <div class="text-[11px] text-slate-500">+{tasks[dateKeyFromParts(displayed.getFullYear(), displayed.getMonth(), cell.day)].length - 2}</div>
                                 {/if}
                             </div>
                         {/if}
@@ -406,54 +353,57 @@
         {/each}
     </div>
 
-    <div class="footer">
-        <div class="small selected-info">
+    <div class="mt-2 flex justify-between items-center text-sm">
+        <div class="text-xs text-slate-700">
             <div>Selected: {selected ? selected.toDateString() : '—'}</div>
             <div>Month: {displayed.getMonth() + 1}</div>
         </div>
-        <div class="task-input">
+        <div class="flex gap-2 items-center">
             {#if selected}
-                <input placeholder="Add task..." bind:value={newTaskText} on:keydown={(e)=> e.key==='Enter' && addTask()} />
-                <button on:click={addTask}>Add</button>
-                <button on:click={() => showEventForm = !showEventForm} aria-pressed={showEventForm} style="margin-left:6px">+ Event</button>
+                <input class="px-2.5 py-2 border border-slate-300 rounded-lg" placeholder="Add task..." bind:value={newTaskText} onkeydown={(e)=> e.key==='Enter' && addTask()} />
+                <button onclick={addTask} class="px-3 py-2 rounded-lg border border-blue-700 bg-blue-700 text-white hover:bg-blue-800">Add</button>
+                <button onclick={toggleEventForm} aria-pressed={showEventForm} class="px-3 py-2 rounded-lg border border-blue-700 bg-blue-700 text-white hover:bg-blue-800">+ Event</button>
             {/if}
         </div>
     </div>
 
     {#if selected}
-        <div class="selected-tasks">
-            <div class="selected-tasks-title">Items for {selected.toDateString()}</div>
+        <div class="p-3 bg-slate-50 border-t border-slate-200">
+            <div class="font-semibold mb-2">Items for {selected.toDateString()}</div>
             {#if showEventForm}
-                <div style="display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap">
-                    <input placeholder="Event title" bind:value={newEvent!.name} />
-                    <input type="datetime" bind:value={newEvent!.dateStart} />
-                    <input type="datetime" bind:value={newEvent!.dateEnd} />
-                    <input placeholder="Location" bind:value={newEvent!.location} />
-                    <button on:click={addEvent}>Add Event</button>
-                    <button on:click={() => { showEventForm = false; }}>Cancel</button>
+                <div class="flex flex-wrap gap-2 items-center my-2">
+                    <input class="px-2.5 py-2 border border-slate-300 rounded-lg" placeholder="Event title" bind:value={newEvent!.name} />
+                    <input class="px-2.5 py-2 border border-slate-300 rounded-lg" type="datetime-local" bind:value={newEvent!.start} />
+                    <input class="px-2.5 py-2 border border-slate-300 rounded-lg" type="datetime-local" bind:value={newEvent!.end} />
+                    <input class="px-2.5 py-2 border border-slate-300 rounded-lg" placeholder="Location" bind:value={newEvent!.location} />
+                    <button type="button" onclick={addEvent} disabled={eventSaving} class="px-3 py-2 rounded-lg border border-blue-700 bg-blue-700 text-white disabled:opacity-60">Add Event</button>
+                    <button type="button" onclick={() => { showEventForm = false; }} class="px-3 py-2 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100">Cancel</button>
                 </div>
+                {#if eventError}
+                    <div class="mt-1 text-[13px] text-red-600">{eventError}</div>
+                {/if}
             {/if}
             {#if tasks[dateKey(selected)]}
-                <ul>
+                <ul class="space-y-2">
                     {#each tasks[dateKey(selected)] as t, idx}
-                            <li draggable="true" on:dragstart={(e) => dragStart(dateKey(selected), idx, e)} on:dragend={dragEnd}>
+                            <li draggable="true" class="flex justify-between items-center bg-white p-2 rounded-xl border border-slate-200" ondragstart={(e) => dragStart(dateKey(selected), idx, e)} ondragend={dragEnd}>
                                 {#if t.type === 'task'}
-                                    <label style="display:flex;align-items:center;gap:8px;flex:1">
-                                        <input type="checkbox" checked={t.done} on:change={() => toggleDone(dateKey(selected), idx)} />
-                                        <span class:done={t.done}>{t.text}</span>
+                                    <label class="flex items-center gap-2 flex-1">
+                                        <input type="checkbox" checked={t.done} onchange={() => toggleDone(dateKey(selected), idx)} />
+                                        <span class="text-slate-900" class:line-through={t.done} class:text-slate-600={t.done}>{t.text}</span>
                                     </label>
                                 {:else if t.type === 'event'}
-                                    <div style="display:flex;flex-direction:column;gap:4px;flex:1">
-                                        <div style="font-weight:600">{t.title} {#if t.start}<span style="font-weight:400;color:#666;font-size:13px"> — {t.start}{#if t.end}–{t.end}{/if}</span>{/if}</div>
-                                        {#if t.location}<div style="font-size:13px;color:#555">{t.location}</div>{/if}
+                                    <div class="flex flex-col gap-1 flex-1">
+                                        <div class="font-semibold">{t.name} {#if t.start}<span class="font-normal text-slate-500 text-[13px]"> — {t.start}{#if t.end}–{t.end}{/if}</span>{/if}</div>
+                                        {#if t.location}<div class="text-slate-600 text-[13px]">{t.location}</div>{/if}
                                     </div>
                                 {/if}
-                                <button class="remove" on:click={() => removeTask(dateKey(selected), idx)}>✕</button>
+                                <button class="text-red-600 hover:text-red-800" onclick={() => removeTask(dateKey(selected), idx)}>✕</button>
                             </li>
                         {/each}
                 </ul>
             {:else}
-                <div class="no-tasks">No tasks</div>
+                <div class="text-slate-600">No tasks</div>
             {/if}
         </div>
     {/if}
