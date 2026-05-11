@@ -10,6 +10,8 @@ WORKDIR /usr/src/app
 
 COPY . .
 
+COPY .env .env
+
 RUN npm i -g pnpm prisma
 
 RUN pnpm i
