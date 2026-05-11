@@ -23,7 +23,7 @@
 		</NavBrand>
 		<div class="flex md:order-2">
 			{#if page.data.user == null}
-				<Button size="sm" href="/login">Login</Button>
+				<Button size="sm" href="/login" color="blue">Login</Button>
 			{:else}
 				<Button size="sm" href="/logout" color="blue">Logout</Button>
 			{/if}

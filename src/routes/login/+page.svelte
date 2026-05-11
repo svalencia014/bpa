@@ -61,7 +61,7 @@
     </div>
 
     <button
-      class="focus:shadow-outline w-full rounded bg-red-500 px-4 py-2 text-sm font-bold text-white hover:cursor-pointer hover:bg-red-700 focus:outline-none"
+      class="focus:shadow-outline w-full rounded bg-blue-500 px-4 py-2 text-sm font-bold text-white hover:cursor-pointer hover:bg-blue-700 focus:outline-none"
       type="button"
       onclick={handleUsernameLogin}
     >Sign In</button>

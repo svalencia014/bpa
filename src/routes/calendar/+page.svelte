@@ -75,8 +75,17 @@
         return dateKeyFromParts(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate());
     }
 
-    function getDefaultEvent(): CalendarEventForm {
-        const value = new Date().toISOString().slice(0, 16);
+    function toDatetimeLocalValue(dateObj: Date) {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        const hours = String(dateObj.getHours()).padStart(2, '0');
+        const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    }
+
+    function getDefaultEvent(baseDate: Date = selected ?? today): CalendarEventForm {
+        const value = toDatetimeLocalValue(baseDate);
         return { type: 'event', name: '', start: value, end: value, location: '', createdAt: new Date() };
     }
 
@@ -145,7 +154,7 @@
             }
 
             showEventForm = false;
-            newEvent = getDefaultEvent();
+            newEvent = getDefaultEvent(selected ?? today);
         } catch (error) {
             eventError = 'Unable to save event.';
             console.error('Event save failed:', error);
@@ -155,7 +164,7 @@
     }
 
     function toggleEventForm() {
-        if (!newEvent) newEvent = getDefaultEvent();
+        if (!newEvent) newEvent = getDefaultEvent(selected ?? today);
         showEventForm = !showEventForm;
     }
 
@@ -360,8 +369,6 @@
         </div>
         <div class="flex gap-2 items-center">
             {#if selected}
-                <input class="px-2.5 py-2 border border-slate-300 rounded-lg" placeholder="Add task..." bind:value={newTaskText} onkeydown={(e)=> e.key==='Enter' && addTask()} />
-                <button onclick={addTask} class="px-3 py-2 rounded-lg border border-blue-700 bg-blue-700 text-white hover:bg-blue-800">Add</button>
                 <button onclick={toggleEventForm} aria-pressed={showEventForm} class="px-3 py-2 rounded-lg border border-blue-700 bg-blue-700 text-white hover:bg-blue-800">+ Event</button>
             {/if}
         </div>
