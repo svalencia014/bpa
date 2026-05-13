@@ -168,3 +168,37 @@ export async function PUT({ locals, request }) {
 		return json({ error: 'Internal Server Error' }, 500);
 	}
 }
+
+export async function DELETE({ locals, request }) {
+	const authError = requireAdmin(locals);
+	if (authError) {
+		return authError;
+	}
+
+	const body = await request.json();
+	const eventId = String(body?.eventId ?? '').trim();
+
+	if (!eventId) {
+		return json({ error: 'Missing event ID.' }, 400);
+	}
+
+	const existingEvent = await prisma.event.findUnique({
+		where: { id: eventId },
+		select: { id: true }
+	});
+
+	if (!existingEvent) {
+		return json({ error: 'Event not found.' }, 404);
+	}
+
+	try {
+		await prisma.event.delete({
+			where: { id: eventId }
+		});
+
+		return json({ success: true, eventId });
+	} catch (error) {
+		console.error('Error deleting event:', error);
+		return json({ error: 'Internal Server Error' }, 500);
+	}
+}

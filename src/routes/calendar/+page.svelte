@@ -56,6 +56,7 @@
 	let attendanceError = $state('');
 	let attendanceMessage = $state('');
 	let eventSaving = $state(false);
+	let eventDeleting = $state(false);
 	let attendanceSavingKey = $state('');
 	let tasks = $state<Record<string, CalendarItem[]>>({});
 
@@ -269,6 +270,38 @@
 			console.error('Attendance update failed:', error);
 		} finally {
 			attendanceSavingKey = '';
+		}
+	}
+
+	async function deleteEvent(eventId: string) {
+		if (!confirm('Remove this event from the calendar?')) return;
+
+		eventDeleting = true;
+		eventError = '';
+		attendanceError = '';
+		attendanceMessage = '';
+
+		try {
+			const response = await fetch('/calendar', {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ eventId })
+			});
+
+			const result = await response.json();
+			if (!response.ok) {
+				eventError = result.error || 'Unable to remove this event right now.';
+				return;
+			}
+
+			events = events.filter((event) => event.id !== eventId);
+			syncEventsIntoTasks();
+			selectedTrackedEventId = '';
+		} catch (error) {
+			eventError = 'Unable to remove this event right now.';
+			console.error('Event delete failed:', error);
+		} finally {
+			eventDeleting = false;
 		}
 	}
 
@@ -606,6 +639,10 @@
 				<div class="text-slate-600">No scheduled items</div>
 			{/if}
 
+			{#if eventError && !showEventForm}
+				<div class="mt-3 text-sm text-red-600">{eventError}</div>
+			{/if}
+
 			{#if selectedEvent}
 				<div class="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
 					<div class="flex flex-wrap items-center justify-between gap-3">
@@ -618,6 +655,16 @@
 								{/if}
 							</p>
 						</div>
+						{#if currentUser.isAdmin}
+							<button
+								type="button"
+								onclick={() => deleteEvent(selectedEvent.id)}
+								disabled={eventDeleting}
+								class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+							>
+								{eventDeleting ? 'Removing...' : 'Remove Event'}
+							</button>
+						{/if}
 					</div>
 
 					{#if currentUser.isAdmin && selectedEvent.mandatory && (selectedEvent.eventType === 'MEETING' || selectedEvent.eventType === 'PRACTICE')}
