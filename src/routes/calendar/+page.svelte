@@ -598,39 +598,54 @@
 									</button>
 								</div>
 							{:else}
-								<button
-									type="button"
-									onclick={() => {
-										selectedTrackedEventId = t.id;
-									}}
-									class={`w-full rounded-lg border px-3 py-3 text-left ${
+								<div
+									class={`flex items-start gap-3 rounded-lg border px-3 py-3 ${
 										selectedTrackedEventId === t.id
 											? 'border-blue-300 bg-blue-50'
 											: 'border-slate-200 bg-white hover:bg-slate-50'
 									}`}
 								>
-									<div class="flex flex-wrap items-center gap-2">
-										<div class="font-semibold">{t.name}</div>
-										<span
-											class="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700"
-										>
-											{formatEventType(t.eventType)}
-										</span>
-										{#if t.mandatory}
+									<button
+										type="button"
+										onclick={() => {
+											selectedTrackedEventId = t.id;
+										}}
+										class="flex-1 text-left"
+									>
+										<div class="flex flex-wrap items-center gap-2">
+											<div class="font-semibold">{t.name}</div>
 											<span
-												class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-800"
+												class="rounded-full bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700"
 											>
-												Mandatory
+												{formatEventType(t.eventType)}
 											</span>
-										{/if}
-									</div>
-									<div class="mt-1 text-[13px] text-slate-600">
-										{t.start}{#if t.end}
-											- {t.end}{/if}
-										{#if t.location}
-											at {t.location}{/if}
-									</div>
-								</button>
+											{#if t.mandatory}
+												<span
+													class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-800"
+												>
+													Mandatory
+												</span>
+											{/if}
+										</div>
+										<div class="mt-1 text-[13px] text-slate-600">
+											{t.start}{#if t.end}
+												- {t.end}{/if}
+											{#if t.location}
+												at {t.location}{/if}
+										</div>
+									</button>
+									{#if currentUser.isAdmin}
+										<button
+											type="button"
+											onclick={() => deleteEvent(t.id)}
+											disabled={eventDeleting}
+											class="rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-60"
+											aria-label={`Remove ${t.name}`}
+										>
+											Delete
+										</button>
+									{/if}
+								</div>
 							{/if}
 						</li>
 					{/each}
