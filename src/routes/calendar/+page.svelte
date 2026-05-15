@@ -42,7 +42,7 @@
 	let { data }: { data: PageData } = $props();
 
 	const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-	const currentUser = $derived(data.user);
+	const currentUser = $derived(data.user || null);
 	const members = $derived(data.members as MemberRecord[]);
 
 	let events = $state<CalendarEventRecord[]>([]);
