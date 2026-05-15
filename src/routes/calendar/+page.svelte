@@ -346,7 +346,7 @@
 	const selectedItems = $derived(tasks[dateKey(selected)] ?? []);
 	const selectedEvent = $derived(getSelectedEventRecord());
 	const attendanceRows = $derived.by(() => {
-		if (!currentUser.isAdmin || !selectedEvent) return [];
+		if (!currentUser || !currentUser.isAdmin || !selectedEvent) return [];
 
 		return members.map((member) => ({
 			...member,
@@ -506,7 +506,7 @@
 			<div>Month: {displayed.getMonth() + 1}</div>
 		</div>
 		<div class="flex items-center gap-2">
-			{#if selected && currentUser.isAdmin}
+			{#if selected && currentUser && currentUser.isAdmin}
 				<button
 					onclick={toggleEventForm}
 					aria-pressed={showEventForm}
@@ -634,7 +634,7 @@
 												at {t.location}{/if}
 										</div>
 									</button>
-									{#if currentUser.isAdmin}
+									{#if currentUser && currentUser.isAdmin}
 										<button
 											type="button"
 											onclick={() => deleteEvent(t.id)}
@@ -670,7 +670,7 @@
 								{/if}
 							</p>
 						</div>
-						{#if currentUser.isAdmin}
+						{#if currentUser && currentUser.isAdmin}
 							<button
 								type="button"
 								onclick={() => deleteEvent(selectedEvent.id)}
@@ -682,7 +682,7 @@
 						{/if}
 					</div>
 
-					{#if currentUser.isAdmin && selectedEvent.mandatory && (selectedEvent.eventType === 'MEETING' || selectedEvent.eventType === 'PRACTICE')}
+					{#if currentUser && currentUser.isAdmin && selectedEvent.mandatory && (selectedEvent.eventType === 'MEETING' || selectedEvent.eventType === 'PRACTICE')}
 						<div class="mt-4">
 							<div class="mb-3 flex items-center justify-between gap-3">
 								<h4 class="font-semibold text-slate-900">Sponsor Attendance Tracker</h4>
@@ -744,7 +744,7 @@
 								<div class="mt-3 text-sm text-red-600">{attendanceError}</div>
 							{/if}
 						</div>
-					{:else if !currentUser.isAdmin && selectedEvent.mandatory && (selectedEvent.eventType === 'MEETING' || selectedEvent.eventType === 'PRACTICE')}
+					{:else if !currentUser || !currentUser.isAdmin && selectedEvent.mandatory && (selectedEvent.eventType === 'MEETING' || selectedEvent.eventType === 'PRACTICE')}
 						<div
 							class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700"
 						>
