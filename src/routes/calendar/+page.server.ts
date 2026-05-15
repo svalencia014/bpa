@@ -2,9 +2,6 @@ import { redirect } from '@sveltejs/kit';
 import { prisma } from '$lib/db.js';
 
 export async function load({ locals }) {
-	if (!locals.user) {
-		throw redirect(302, '/login');
-	}
 
 	const attendanceSelection = {
 		select: {
